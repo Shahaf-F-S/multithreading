@@ -10,7 +10,7 @@ def main() -> None:
 
     commands = [
         (lambda: run_silent_command("python setup.py sdist")),
-        specs, lambda: document(location="project")
+        specs, lambda: document(location="multithreading")
     ]
 
     for command in commands:
