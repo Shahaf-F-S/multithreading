@@ -13,23 +13,97 @@ from represent import BaseModel, Modifiers
 __all__ = [
     "Caller",
     "CallDefinition",
-    "CallInfo",
+    "CallsResults",
     "multi_threaded_call",
     "multi_threaded_defined_call",
     "wait_call_completion",
-    "CallWaitingInfo",
+    "ProcessTime",
     "ProcessInfo",
-    "find_caller"
+    "find_caller",
+    "CallerInfo",
+    "CallResults"
 ]
 
-class Caller(BaseModel):
+class ProcessInfo(BaseModel, metaclass=ABCMeta):
+    """A class to contain the info of a call to the callers."""
+
+    modifiers = Modifiers(properties=True)
+
+    __slots__ = 'start', 'end'
+
+    def __init__(
+            self,
+            start: dt.datetime,
+            end: dt.datetime,
+    ) -> None:
+        """
+        Defines the class attributes.
+
+        :param start: The starting time for the call.
+        :param end: The ending time for the call.
+        """
+
+        self.start = start
+        self.end = end
+    # end __init__
+
+    @property
+    def time(self) -> dt.timedelta:
+        """
+        Returns the time duration of the call.
+
+        :return: The call time.
+        """
+
+        return self.end - self.start
+    # end time
+# end CallInfo
+
+
+class ProcessTime(ProcessInfo):
+    """A class to contain the info of a call to the callers."""
+# end ProcessTime
+
+class CallerInfo(ProcessInfo):
     """A class to represent a function caller object."""
 
     modifiers = Modifiers(excluded=["thread"], force=True)
 
+    __slots__ = "returns", "thread"
+
+    def __init__(
+            self,
+            returns: Optional[Any] = None,
+            thread: Optional[threading.Thread] = None,
+            start: Optional[dt.datetime] = None,
+            end: Optional[dt.datetime] = None,
+
+    ) -> None:
+        """
+        Defines the class attributes.
+
+        :param returns: The returned response.
+        """
+
+        super().__init__(start=start, end=end)
+
+        self.returns = returns
+        self.thread = thread
+    # end __init__
+# end Caller
+
+class CallResults(CallerInfo):
+    """A class to represent a container for the call results."""
+# end CallResults
+
+class Caller(BaseModel):
+    """A class to represent a function caller object."""
+
+    modifiers = Modifiers(excluded=["thread", "results"])
+
     __slots__ = (
-        "target", "identifier", "args", "kwargs", "returns",
-        "thread", "start", "end", "complete", "called"
+        "target", "identifier", "args", "kwargs",
+        "thread", "results", "complete", "called"
     )
 
     def __init__(
@@ -37,8 +111,7 @@ class Caller(BaseModel):
             target: Callable,
             identifier: Optional[Any] = None,
             args: Optional[Iterable[Any]] = None,
-            kwargs: Optional[Dict[str, Any]] = None,
-            returns: Optional[Any] = None
+            kwargs: Optional[Dict[str, Any]] = None
     ) -> None:
         """
         Defines the class attributes.
@@ -47,26 +120,21 @@ class Caller(BaseModel):
         :param identifier: The identifier of the call.
         :param args: The positional arguments.
         :param kwargs: The keyword arguments.
-        :param returns: The returned response.
         """
 
         self.target = target
-        self.returns = returns
-
         self.args = args or ()
         self.kwargs = kwargs or {}
         self.identifier = identifier or self.target
 
-        self.thread: Optional[threading.Thread] = None
-
-        self.start: Optional[dt.timedelta] = None
-        self.end: Optional[dt.timedelta] = None
-
         self.complete = False
         self.called = False
+
+        self.thread: Optional[threading.Thread] = None
+        self.results: Optional[CallResults] = None
     # end __init__
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self, *args: Any, **kwargs: Any) -> CallResults:
         """
         Calls the function and saves the response.
 
@@ -76,44 +144,32 @@ class Caller(BaseModel):
         :return: The returned response.
         """
 
-        self.start = dt.datetime.now()
+        start = dt.datetime.now()
 
         self.args = args or self.args
         self.kwargs = kwargs or self.kwargs
 
         self.called = True
 
-        self.returns = self.target(*self.args, **self.kwargs)
+        returns = self.target(*self.args, **self.kwargs)
 
         self.complete = True
 
-        self.end = dt.datetime.now()
+        end = dt.datetime.now()
 
-        return self.returns
+        self.results = CallResults(
+            start=start, end=end,
+            thread=self.thread, returns=returns
+        )
+
+        return self.results
     # end __call__
-
-    @property
-    def time(self) -> dt.timedelta:
-        """
-        Calculates the time between start and end.
-
-        :return: The process time.
-        """
-
-        if self.start is None or self.end is None:
-            return dt.timedelta()
-        # end if
-
-        return self.end - self.start
-    # end time
 
     def reset(self) -> None:
         """Rests the values from the calls."""
 
-        self.returns = None
         self.called = False
         self.complete = False
-        self.modifiers = False
     # end reset
 # end Caller
 
@@ -139,6 +195,29 @@ def find_caller(callers: Iterable[Caller], identifier: Any) -> Caller:
         f"{', '.join(str(caller.identifier) for caller in callers)}"
     )
 # end find_caller
+
+def find_results(callers: Iterable[Caller], identifier: Any) -> Caller:
+    """
+    Finds the caller object by its identifier
+
+    :param callers: The callers in which to search.
+    :param identifier: The identifier of the caller to return.
+
+    :return: The matching caller object.
+    """
+
+    for caller in callers:
+        if caller.identifier == identifier:
+            return caller
+        # end if
+    # end for
+
+    raise ValueError(
+        f"Cannot find a caller object with the identifier: "
+        f"{identifier}. valid identifiers are: "
+        f"{', '.join(str(caller.identifier) for caller in callers)}"
+    )
+# end find_results
 
 class CallDefinition(BaseModel):
     """A class to represent the call definition."""
@@ -190,83 +269,76 @@ class CallDefinition(BaseModel):
     # end __init__
 # end CallDefinition
 
-class ProcessInfo(BaseModel, metaclass=ABCMeta):
+class CallsResults(BaseModel):
     """A class to contain the info of a call to the callers."""
 
-    modifiers = Modifiers(excluded=["thread"], properties=True)
-
-    __slots__ = 'callers', 'start', 'end', 'definition'
+    __slots__ = "waiting", "callers", "definition", "total"
 
     def __init__(
             self,
-            callers: Iterable[Caller],
-            start: dt.datetime,
-            end: dt.datetime,
+            callers: Dict[Caller, CallResults],
+            total: ProcessTime,
+            waiting: ProcessTime,
             definition: CallDefinition
     ) -> None:
         """
         Defines the class attributes.
 
         :param callers: The callers object.
-        :param start: The starting time for the call.
-        :param end: The ending time for the call.
+        :param total: The time object for the call.
         :param definition: The call definition object.
         """
 
         self.callers = callers
         self.definition = definition
-
-        self.start = start
-        self.end = end
-    # end __init__
-
-    @property
-    def time(self) -> dt.timedelta:
-        """
-        Returns the time duration of the call.
-
-        :return: The call time.
-        """
-
-        return self.end - self.start
-    # end time
-# end CallInfo
-
-
-class CallWaitingInfo(ProcessInfo):
-    """A class to contain the info of a call to the callers."""
-# end CallWaitingInfo
-
-class CallInfo(ProcessInfo):
-    """A class to contain the info of a call to the callers."""
-
-    __slots__ = "waiting",
-
-    def __init__(
-            self,
-            callers: Iterable[Caller],
-            start: dt.datetime,
-            waiting: CallWaitingInfo,
-            end: dt.datetime,
-            definition: CallDefinition
-    ) -> None:
-        """
-        Defines the class attributes.
-
-        :param callers: The callers object.
-        :param start: The starting time for the call.
-        :param end: The ending time for the call.
-        :param definition: The call definition object.
-        """
-
-        super().__init__(
-            callers=callers, start=start,
-            end=end, definition=definition
-        )
-
+        self.total = total
         self.waiting = waiting
     # end __init__
-# end CallInfo
+
+    def caller(self, identifier: Any) -> Caller:
+        """
+        Finds the caller object by its identifier
+
+        :param identifier: The identifier of the caller to return.
+
+        :return: The matching caller object.
+        """
+
+        for caller in self.callers:
+            if caller.identifier == identifier:
+                return caller
+            # end if
+        # end for
+
+        raise ValueError(
+            f"Cannot find a caller object with the identifier: "
+            f"{identifier}. valid identifiers are: "
+            f"{', '.join(str(caller.identifier) for caller in self.callers)}"
+        )
+    # end caller
+
+    def results(self, identifier: Any) -> CallResults:
+        """
+        Finds the caller object by its identifier
+
+        :param identifier: The identifier of the caller to return.
+
+        :return: The matching caller object.
+        """
+
+        for caller, results in self.callers.items():
+            if caller.identifier == identifier:
+                return results
+            # end if
+        # end for
+
+        raise ValueError(
+            f"Cannot find a caller object with the identifier: "
+            f"{identifier}. valid identifiers are: "
+            f"{', '.join(str(caller.identifier) for caller in self.callers)}"
+        )
+    # end results
+# end CallsResults
 
 def validate_callers(data: Any) -> Iterable[Caller]:
     """
@@ -294,7 +366,7 @@ def validate_callers(data: Any) -> Iterable[Caller]:
 
 def wait_call_completion(
         callers: Iterable[Caller], definition: CallDefinition
-) -> CallWaitingInfo:
+) -> ProcessTime:
     """
     Waits for the calls to complete.
 
@@ -322,16 +394,13 @@ def wait_call_completion(
 
     end = dt.datetime.now()
 
-    return CallWaitingInfo(
-        callers=callers, start=start,
-        end=end, definition=definition
-    )
+    return ProcessTime(start=start, end=end)
 # end wait_call_completion
 
 def multi_threaded_defined_call(
         callers: Iterable[Caller],
         definition: Optional[CallDefinition] = None
-) -> CallInfo:
+) -> CallsResults:
     """
     Calls the functions with the callers.
 
@@ -365,6 +434,8 @@ def multi_threaded_defined_call(
         callers=callers, definition=definition
     )
 
+    results = {caller: caller.results for caller in callers}
+
     if definition.reset_after:
         for caller in callers:
             caller.reset()
@@ -373,8 +444,8 @@ def multi_threaded_defined_call(
 
     end = dt.datetime.now()
 
-    return CallInfo(
-        callers=callers, start=start, end=end,
+    return CallsResults(
+        callers=results, total=ProcessTime(start=start, end=end),
         definition=definition, waiting=waiting
     )
 # end multi_threaded_defined_call
@@ -385,7 +456,7 @@ def multi_threaded_call(
         reset_before: Optional[bool] = None,
         reset_after: Optional[bool] = None,
         sleep: Optional[Union[int, float, dt.timedelta]] = None
-) -> CallInfo:
+) -> CallsResults:
     """
     Calls the functions with the callers.
 
