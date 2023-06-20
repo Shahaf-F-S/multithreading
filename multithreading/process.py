@@ -63,9 +63,9 @@ class ProcessTime(ProcessInfo):
     """A class to contain the info of a call to the callers."""
 # end ProcessTime
 
-ReturnType = TypeVar("ReturnType")
+_ReturnType = TypeVar("_ReturnType")
 
-class CallResults(BaseModel, Generic[ReturnType]):
+class CallResults(BaseModel, Generic[_ReturnType]):
     """A class to represent a container for the call results."""
 
     modifiers = Modifiers(excluded=["thread"], force=True)
@@ -74,7 +74,7 @@ class CallResults(BaseModel, Generic[ReturnType]):
 
     def __init__(
             self,
-            returns: Optional[ReturnType] = None,
+            returns: Optional[_ReturnType] = None,
             thread: Optional[threading.Thread] = None,
             start: Optional[dt.datetime] = None,
             end: Optional[dt.datetime] = None,
@@ -93,7 +93,7 @@ class CallResults(BaseModel, Generic[ReturnType]):
     # end __init__
 # end CallResults
 
-class Caller(BaseModel, Generic[ReturnType]):
+class Caller(BaseModel, Generic[_ReturnType]):
     """A class to represent a function caller object."""
 
     modifiers = Modifiers(excluded=["thread", "results"])
@@ -105,7 +105,7 @@ class Caller(BaseModel, Generic[ReturnType]):
 
     def __init__(
             self,
-            target: Callable[..., ReturnType],
+            target: Callable[..., _ReturnType],
             identifier: Optional[Any] = None,
             args: Optional[Iterable[Any]] = None,
             kwargs: Optional[Dict[str, Any]] = None
@@ -131,7 +131,7 @@ class Caller(BaseModel, Generic[ReturnType]):
         self.results: Optional[CallResults] = None
     # end __init__
 
-    def __call__(self, *args: Any, **kwargs: Any) -> CallResults[ReturnType]:
+    def __call__(self, *args: Any, **kwargs: Any) -> CallResults[_ReturnType]:
         """
         Calls the function and saves the response.
 
@@ -148,13 +148,15 @@ class Caller(BaseModel, Generic[ReturnType]):
 
         self.called = True
 
-        returns: ReturnType = self.target(*self.args, **self.kwargs)
+        returns: _ReturnType = self.target(
+            *self.args, **self.kwargs
+        )
 
         self.complete = True
 
         end = dt.datetime.now()
 
-        self.results = CallResults[ReturnType](
+        self.results = CallResults[_ReturnType](
             start=start, end=end,
             thread=self.thread, returns=returns
         )
