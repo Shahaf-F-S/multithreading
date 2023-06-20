@@ -70,7 +70,7 @@ class CallResults(BaseModel, Generic[_ReturnType]):
 
     modifiers = Modifiers(excluded=["thread"], force=True)
 
-    __slots__ = "returns", "thread"
+    __slots__ = "returns", "thread", "start", "end"
 
     def __init__(
             self,
@@ -86,7 +86,8 @@ class CallResults(BaseModel, Generic[_ReturnType]):
         :param returns: The returned response.
         """
 
-        super().__init__(start=start, end=end)
+        self.start = start
+        self.end = end
 
         self.returns = returns
         self.thread = thread
@@ -128,7 +129,7 @@ class Caller(BaseModel, Generic[_ReturnType]):
         self.called = False
 
         self.thread: Optional[threading.Thread] = None
-        self.results: Optional[CallResults] = None
+        self.results: Optional[CallResults[_ReturnType]] = None
     # end __init__
 
     def __call__(self, *args: Any, **kwargs: Any) -> CallResults[_ReturnType]:
