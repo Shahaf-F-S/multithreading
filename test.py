@@ -33,8 +33,7 @@ def main() -> None:
         Caller(
             target=slow_function,
             kwargs=dict(minimum=MIN, maximum=MAX)
-        )
-        for _ in range(CALLS)
+        ) for _ in range(CALLS)
     ]
 
     results = multi_threaded_call(callers=callers)

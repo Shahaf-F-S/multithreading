@@ -5,7 +5,8 @@ import threading
 import time
 from abc import ABCMeta
 from typing import (
-    Any, Optional, Dict, Callable, Iterable, Union
+    Any, Optional, Dict, Callable,
+    Iterable, Union, TypeVar, Generic
 )
 
 from represent import BaseModel, Modifiers
@@ -20,7 +21,6 @@ __all__ = [
     "ProcessTime",
     "ProcessInfo",
     "find_caller",
-    "CallerInfo",
     "CallResults"
 ]
 
@@ -59,13 +59,14 @@ class ProcessInfo(BaseModel, metaclass=ABCMeta):
     # end time
 # end CallInfo
 
-
 class ProcessTime(ProcessInfo):
     """A class to contain the info of a call to the callers."""
 # end ProcessTime
 
-class CallerInfo(ProcessInfo):
-    """A class to represent a function caller object."""
+ReturnType = TypeVar("ReturnType")
+
+class CallResults(BaseModel, Generic[ReturnType]):
+    """A class to represent a container for the call results."""
 
     modifiers = Modifiers(excluded=["thread"], force=True)
 
@@ -73,7 +74,7 @@ class CallerInfo(ProcessInfo):
 
     def __init__(
             self,
-            returns: Optional[Any] = None,
+            returns: Optional[ReturnType] = None,
             thread: Optional[threading.Thread] = None,
             start: Optional[dt.datetime] = None,
             end: Optional[dt.datetime] = None,
@@ -90,13 +91,9 @@ class CallerInfo(ProcessInfo):
         self.returns = returns
         self.thread = thread
     # end __init__
-# end Caller
-
-class CallResults(CallerInfo):
-    """A class to represent a container for the call results."""
 # end CallResults
 
-class Caller(BaseModel):
+class Caller(BaseModel, Generic[ReturnType]):
     """A class to represent a function caller object."""
 
     modifiers = Modifiers(excluded=["thread", "results"])
@@ -108,7 +105,7 @@ class Caller(BaseModel):
 
     def __init__(
             self,
-            target: Callable,
+            target: Callable[..., ReturnType],
             identifier: Optional[Any] = None,
             args: Optional[Iterable[Any]] = None,
             kwargs: Optional[Dict[str, Any]] = None
@@ -134,7 +131,7 @@ class Caller(BaseModel):
         self.results: Optional[CallResults] = None
     # end __init__
 
-    def __call__(self, *args: Any, **kwargs: Any) -> CallResults:
+    def __call__(self, *args: Any, **kwargs: Any) -> CallResults[ReturnType]:
         """
         Calls the function and saves the response.
 
@@ -151,13 +148,13 @@ class Caller(BaseModel):
 
         self.called = True
 
-        returns = self.target(*self.args, **self.kwargs)
+        returns: ReturnType = self.target(*self.args, **self.kwargs)
 
         self.complete = True
 
         end = dt.datetime.now()
 
-        self.results = CallResults(
+        self.results = CallResults[ReturnType](
             start=start, end=end,
             thread=self.thread, returns=returns
         )
