@@ -22,7 +22,7 @@ def slow_function(minimum: int, maximum: int) -> int:
     return number
 # end slow_function
 
-CALLS = 1
+CALLS = 4
 MIN = 1
 MAX = 2
 

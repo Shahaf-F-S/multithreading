@@ -1,11 +1,12 @@
 # process.py
 
 import datetime as dt
+from dataclasses import dataclass
 import threading
 import time
 from abc import ABCMeta
 from typing import (
-    Any, Optional, Dict, Callable,
+    Any, Optional, Dict, Callable, ClassVar,
     Iterable, Union, TypeVar, Generic
 )
 
@@ -24,28 +25,14 @@ __all__ = [
     "CallResults"
 ]
 
+@dataclass(repr=False, slots=True)
 class ProcessInfo(BaseModel, metaclass=ABCMeta):
     """A class to contain the info of a call to the callers."""
 
-    modifiers = Modifiers(properties=True)
+    start: dt.datetime
+    end: dt.datetime
 
-    __slots__ = 'start', 'end'
-
-    def __init__(
-            self,
-            start: dt.datetime,
-            end: dt.datetime,
-    ) -> None:
-        """
-        Defines the class attributes.
-
-        :param start: The starting time for the call.
-        :param end: The ending time for the call.
-        """
-
-        self.start = start
-        self.end = end
-    # end __init__
+    modifiers: ClassVar[Modifiers] = Modifiers(properties=['time'])
 
     @property
     def time(self) -> dt.timedelta:
@@ -65,33 +52,18 @@ class ProcessTime(ProcessInfo):
 
 _ReturnType = TypeVar("_ReturnType")
 
+@dataclass(repr=False, slots=True)
 class CallResults(BaseModel, Generic[_ReturnType]):
     """A class to represent a container for the call results."""
 
-    modifiers = Modifiers(excluded=["thread"], force=True)
+    returns: Optional[_ReturnType] = None
+    thread: Optional[threading.Thread] = None
+    start: Optional[dt.datetime] = None
+    end: Optional[dt.datetime] = None
 
-    __slots__ = "returns", "thread", "start", "end"
-
-    def __init__(
-            self,
-            returns: Optional[_ReturnType] = None,
-            thread: Optional[threading.Thread] = None,
-            start: Optional[dt.datetime] = None,
-            end: Optional[dt.datetime] = None,
-
-    ) -> None:
-        """
-        Defines the class attributes.
-
-        :param returns: The returned response.
-        """
-
-        self.start = start
-        self.end = end
-
-        self.returns = returns
-        self.thread = thread
-    # end __init__
+    modifiers: ClassVar[Modifiers] = Modifiers(
+        excluded=["thread"], force=True
+    )
 # end CallResults
 
 class Caller(BaseModel, Generic[_ReturnType]):
@@ -269,31 +241,14 @@ class CallDefinition(BaseModel):
     # end __init__
 # end CallDefinition
 
+@dataclass(repr=False, slots=True)
 class CallsResults(BaseModel):
     """A class to contain the info of a call to the callers."""
 
-    __slots__ = "waiting", "callers", "definition", "total"
-
-    def __init__(
-            self,
-            callers: Dict[Caller, CallResults],
-            total: ProcessTime,
-            waiting: ProcessTime,
-            definition: CallDefinition
-    ) -> None:
-        """
-        Defines the class attributes.
-
-        :param callers: The callers object.
-        :param total: The time object for the call.
-        :param definition: The call definition object.
-        """
-
-        self.callers = callers
-        self.definition = definition
-        self.total = total
-        self.waiting = waiting
-    # end __init__
+    callers: Dict[Caller, CallResults]
+    total: ProcessTime
+    waiting: ProcessTime
+    definition: CallDefinition
 
     def caller(self, identifier: Any) -> Caller:
         """
