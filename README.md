@@ -9,7 +9,6 @@ first of all
 
 - writen and owned by: Shahaf Frank-Shapir
 - all the rights are saved for: Shahaf Frank-Shapir
-- program version: 0.0.0
 - programming languages: python 3.9.12 (100%)
 
 before we start
