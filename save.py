@@ -1,25 +1,41 @@
 # save.py
 
-from multithreading.base import run_silent_command, suppress
+import os
+from typing import Optional
 
-from specs import main as specs
-from document import main as document
+from base import run_silent_command, suppress
+from specs import project_specs
+from document import generate_html
 
-def main() -> None:
-    """Runs the function to save thew project."""
+def main(project: str, silence: Optional[bool] = True) -> None:
+    """
+    Runs the function to save thew project.
+
+    :param project: The project name.
+    :param silence: The value to silence the process.
+    """
 
     commands = [
-        (lambda: run_silent_command("python setup.py sdist")),
-        specs, lambda: document(location="multithreading")
+        lambda: (
+            (os.system if not silence else run_silent_command)(
+                "python setup.py sdist"
+            )
+        ),
+        lambda: project_specs(
+            location=project, excluded_names=["__pycache__"],
+            excluded_extensions=[".pyc"], code_file_extensions=[".py"],
+            content_file_extensions=[], save=True
+        ),
+        lambda: generate_html(package=project)
     ]
 
     for command in commands:
-        with suppress():
+        with suppress(silence=silence):
             command()
         # end suppress
     # end for
 # end main
 
 if __name__ == "__main__":
-    main()
+    main(project="multithreading")
 # end if

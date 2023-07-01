@@ -25,7 +25,7 @@ def main() -> None:
         requirements="requirements.txt",
         dev_requirements="requirements-dev.txt",
         name='pymultithreading',
-        version='0.2.4',
+        version='0.2.5',
         description=(
             "A python module for creating multithreading "
             "processes easily, in a more Pythonic way."

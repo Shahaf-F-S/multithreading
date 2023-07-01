@@ -106,16 +106,20 @@ def terminate_thread(thread: threading.Thread) -> None:
     logging.getLogger().setLevel(logging.FATAL)
 # end terminate_thread
 
-def suppress() -> contextlib.redirect_stdout:
+def suppress(silence: Optional[bool] = True) -> contextlib.AbstractContextManager:
     """
     Suppresses the output.
+
+    :param silence: The value to silence.
 
     :return: The output suppressor.
     """
 
-    with warnings.catch_warnings(record=True):
-        warnings.simplefilter("ignore")
+    if not silence:
+        return contextlib.nullcontext()
+    # end if
 
+    with warnings.catch_warnings(record=True):
         return contextlib.redirect_stdout(None)
     # end catch_warnings
 # end suppress
@@ -127,10 +131,7 @@ def run_silent_command(command: str) -> None:
     :param command: The command to run.
     """
 
-    subprocess.Popen(
-        command, shell=True, stdout=subprocess.PIPE,
-        stdin=subprocess.PIPE, stderr=subprocess.PIPE
-    )
+    subprocess.run(list(command.split(" ")), capture_output=True)
 # end run_silent_command
 
 def virtualenv_interpreter_location() -> str:
