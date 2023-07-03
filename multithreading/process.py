@@ -10,7 +10,7 @@ from typing import (
     Iterable, Union, TypeVar, Generic
 )
 
-from represent import BaseModel, Modifiers
+from represent import represent, Modifiers
 
 __all__ = [
     "Caller",
@@ -26,13 +26,14 @@ __all__ = [
 ]
 
 @dataclass(repr=False, slots=True)
-class ProcessInfo(BaseModel, metaclass=ABCMeta):
+@represent
+class ProcessInfo(metaclass=ABCMeta):
     """A class to contain the info of a call to the callers."""
 
     start: dt.datetime
     end: dt.datetime
 
-    modifiers: ClassVar[Modifiers] = Modifiers(properties=['time'])
+    __modifiers__: ClassVar[Modifiers] = Modifiers(properties=['time'])
 
     @property
     def time(self) -> dt.timedelta:
@@ -53,7 +54,8 @@ class ProcessTime(ProcessInfo):
 _ReturnType = TypeVar("_ReturnType")
 
 @dataclass(repr=False, slots=True)
-class CallResults(BaseModel, Generic[_ReturnType]):
+@represent
+class CallResults(Generic[_ReturnType]):
     """A class to represent a container for the call results."""
 
     returns: Optional[_ReturnType] = None
@@ -61,15 +63,16 @@ class CallResults(BaseModel, Generic[_ReturnType]):
     start: Optional[dt.datetime] = None
     end: Optional[dt.datetime] = None
 
-    modifiers: ClassVar[Modifiers] = Modifiers(
+    __modifiers__: ClassVar[Modifiers] = Modifiers(
         excluded=["thread"], force=True
     )
 # end CallResults
 
-class Caller(BaseModel, Generic[_ReturnType]):
+@represent
+class Caller(Generic[_ReturnType]):
     """A class to represent a function caller object."""
 
-    modifiers = Modifiers(excluded=["thread", "results"])
+    __modifiers__ = Modifiers(excluded=["thread", "results"])
 
     __slots__ = (
         "target", "identifier", "args", "kwargs",
@@ -191,7 +194,8 @@ def find_results(callers: Iterable[Caller], identifier: Any) -> Caller:
     )
 # end find_results
 
-class CallDefinition(BaseModel):
+@represent
+class CallDefinition:
     """A class to represent the call definition."""
 
     WAIT = True
@@ -242,8 +246,11 @@ class CallDefinition(BaseModel):
 # end CallDefinition
 
 @dataclass(repr=False, slots=True)
-class CallsResults(BaseModel):
+@represent
+class CallsResults:
     """A class to contain the info of a call to the callers."""
+
+    # __modifiers__ = Modifiers(excluded=["tread"], force=True)
 
     callers: Dict[Caller, CallResults]
     total: ProcessTime
