@@ -1,7 +1,6 @@
 # process.py
 
 import datetime as dt
-from dataclasses import dataclass
 import threading
 import time
 from abc import ABCMeta
@@ -9,6 +8,8 @@ from typing import (
     Any, Optional, Dict, Callable, ClassVar,
     Iterable, Union, TypeVar, Generic
 )
+
+from attrs import define
 
 from represent import represent, Modifiers
 
@@ -25,7 +26,7 @@ __all__ = [
     "CallResults"
 ]
 
-@dataclass(repr=False, slots=True)
+@define(repr=False)
 @represent
 class ProcessInfo(metaclass=ABCMeta):
     """A class to contain the info of a call to the callers."""
@@ -53,7 +54,7 @@ class ProcessTime(ProcessInfo):
 
 _ReturnType = TypeVar("_ReturnType")
 
-@dataclass(repr=False, slots=True)
+@define(repr=False)
 @represent
 class CallResults(Generic[_ReturnType]):
     """A class to represent a container for the call results."""
@@ -245,12 +246,10 @@ class CallDefinition:
     # end __init__
 # end CallDefinition
 
-@dataclass(repr=False, slots=True)
+@define(repr=False)
 @represent
 class CallsResults:
     """A class to contain the info of a call to the callers."""
-
-    # __modifiers__ = Modifiers(excluded=["tread"], force=True)
 
     callers: Dict[Caller, CallResults]
     total: ProcessTime
