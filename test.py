@@ -5,6 +5,8 @@ import time
 
 from multithreading import Caller, multi_threaded_call
 
+data = []
+
 def slow_function(minimum: int, maximum: int) -> int:
     """
     A function to generate a random int and wait for that amount of seconds.
@@ -17,14 +19,19 @@ def slow_function(minimum: int, maximum: int) -> int:
 
     number = random.randint(minimum, maximum)
 
-    time.sleep(number)
+    for i in range(number):
+        time.sleep(random.randint(0, 10) / 100)
+
+        data.append(number)
+        data.sort()
+    # end for
 
     return number
 # end slow_function
 
-CALLS = 4
-MIN = 1
-MAX = 2
+CALLS = 50
+MIN = 10
+MAX = 100
 
 def main() -> None:
     """A function to run the main test."""
@@ -38,7 +45,14 @@ def main() -> None:
 
     results = multi_threaded_call(callers=callers)
 
-    print(results)
+    for result in sorted(
+        [result for result in results.results.values()],
+        key=lambda res: res.time.time
+    ):
+        print(result)
+    # end for
+
+    print(results.time)
 # end main
 
 if __name__ == "__main__":
