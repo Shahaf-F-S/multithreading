@@ -1,32 +1,55 @@
 # test.py
 
 import random
+from typing import Optional, Dict, Union
 import time
 
 from multithreading import Caller, multi_threaded_call
 
 data = []
 
-def slow_function(minimum: int, maximum: int) -> int:
+def slow_function(
+        minimum: Optional[int] = None,
+        maximum: Optional[int] = None,
+        number: Optional[int] = None,
+        delay: Optional[float] = None
+) -> Dict[str, Union[int, float]]:
     """
     A function to generate a random int and wait for that amount of seconds.
 
     :param minimum: The minimum limit for the generation.
     :param maximum: The maximum limit for the generation.
+    :param number: a random number.
+    :param delay: A random delay.
 
     :return: The random number.
     """
 
-    number = random.randint(minimum, maximum)
+    if number is None:
+        if None in (minimum, maximum):
+            raise ValueError(
+                "minimum and maximum must be defined when number is not."
+            )
+        # end if
+
+        number = random.randint(minimum, maximum)
+    # end if
 
     for i in range(number):
-        time.sleep(random.randint(0, 10) / 100)
+        if delay is None:
+            delay = random.randint(0, 10) / 100
+        # end if
+
+        time.sleep(delay)
 
         data.append(number)
         data.sort()
     # end for
 
-    return number
+    return dict(
+        minimum=minimum, maximum=maximum,
+        number=number, delay=delay
+    )
 # end slow_function
 
 CALLS = 50
@@ -51,8 +74,6 @@ def main() -> None:
     ):
         print(result)
     # end for
-
-    print(results.time)
 # end main
 
 if __name__ == "__main__":
