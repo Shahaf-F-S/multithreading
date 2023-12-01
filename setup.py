@@ -16,7 +16,6 @@ def main() -> None:
 
     setup(
         package="multithreading",
-        project="pyproject.toml",
         exclude=[
             "__pycache__",
             "*.pyc"
@@ -25,7 +24,7 @@ def main() -> None:
         requirements="requirements.txt",
         dev_requirements="requirements-dev.txt",
         name='pymultithreading',
-        version='1.1.0',
+        version='1.1.1',
         description=(
             "A python module for creating multithreading "
             "processes easily, in a more Pythonic way."
