@@ -1,5 +1,2 @@
 pdoc3
-
-attrs
-
-pyrepresent
+twine

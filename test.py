@@ -1,7 +1,6 @@
 # test.py
 
 import random
-from typing import Optional, Dict, Union
 import time
 
 from multithreading import Caller, multi_threaded_call
@@ -9,11 +8,11 @@ from multithreading import Caller, multi_threaded_call
 data = []
 
 def slow_function(
-        minimum: Optional[int] = None,
-        maximum: Optional[int] = None,
-        number: Optional[int] = None,
-        delay: Optional[float] = None
-) -> Dict[str, Union[int, float]]:
+        minimum: int = None,
+        maximum: int = None,
+        number: int = None,
+        delay: float = None
+) -> dict[str, int | float]:
     """
     A function to generate a random int and wait for that amount of seconds.
 

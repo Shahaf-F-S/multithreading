@@ -4,13 +4,9 @@ import datetime as dt
 import threading
 import time
 from typing import (
-    Any, Optional, Dict, Callable, ClassVar,
-    Iterable, Union, TypeVar, Generic
+    Callable, Iterable, TypeVar, Generic, ParamSpec
 )
-
-from attrs import define
-
-from represent import represent, Modifiers
+from dataclasses import dataclass
 
 __all__ = [
     "Caller",
@@ -24,15 +20,12 @@ __all__ = [
     "CallResult"
 ]
 
-@define(repr=False, frozen=True)
-@represent
+@dataclass(slots=True, frozen=True)
 class ProcessTime:
     """A class to contain the info of a call to the results."""
 
     start: dt.datetime
     end: dt.datetime
-
-    __modifiers__: ClassVar[Modifiers] = Modifiers(properties=['time'])
 
     @property
     def time(self) -> dt.timedelta:
@@ -43,28 +36,21 @@ class ProcessTime:
         """
 
         return self.end - self.start
-    # end time
-# end ProcessTime
 
 _RT = TypeVar("_RT")
 
-@define(repr=False, frozen=True)
-@represent
+_P = ParamSpec("_P")
+
+@dataclass(slots=True, frozen=True)
 class CallResult(Generic[_RT]):
     """A class to represent a container for the call result."""
 
-    returns: Optional[_RT] = None
-    thread: Optional[threading.Thread] = None
-    time: Optional[ProcessTime] = None
+    returns: _RT = None
+    thread: threading.Thread = None
+    time: ProcessTime = None
 
-    __modifiers__: ClassVar[Modifiers] = Modifiers(excluded=['thread'])
-# end CallResult
-
-@represent
 class Caller(Generic[_RT]):
     """A class to represent a function caller object."""
-
-    __modifiers__ = Modifiers(properties=['result'])
 
     __slots__ = (
         "target", "identifier", "args", "kwargs",
@@ -73,10 +59,10 @@ class Caller(Generic[_RT]):
 
     def __init__(
             self,
-            target: Callable[..., _RT],
-            identifier: Optional[Any] = None,
-            args: Optional[Iterable[Any]] = None,
-            kwargs: Optional[Dict[str, Any]] = None
+            target: Callable[_P, _RT],
+            identifier: ... = None,
+            args: _P.args = None,
+            kwargs: _P.kwargs = None
     ) -> None:
         """
         Defines the class attributes.
@@ -95,11 +81,10 @@ class Caller(Generic[_RT]):
         self.complete = False
         self.called = False
 
-        self._thread: Optional[threading.Thread] = None
-        self._result: Optional[CallResult[_RT]] = None
-    # end __init__
+        self._thread: threading.Thread | None = None
+        self._result: CallResult[_RT] | None = None
 
-    def __call__(self, *args: Any, **kwargs: Any) -> CallResult[_RT]:
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> CallResult[_RT]:
         """
         Calls the function and saves the response.
 
@@ -122,16 +107,15 @@ class Caller(Generic[_RT]):
 
         end = dt.datetime.now()
 
-        self._result = CallResult[_RT](
+        self._result = CallResult(
             time=ProcessTime(start=start, end=end),
             thread=self.thread, returns=returns
         )
 
         return self.result
-    # end __call__
 
     @property
-    def thread(self) -> Optional[threading.Thread]:
+    def thread(self) -> threading.Thread:
         """
         Returns the thread object.
 
@@ -139,10 +123,9 @@ class Caller(Generic[_RT]):
         """
 
         return self._thread
-    # end thread
 
     @property
-    def result(self) -> Optional[CallResult[_RT]]:
+    def result(self) -> CallResult[_RT]:
         """
         Returns the result object.
 
@@ -150,7 +133,6 @@ class Caller(Generic[_RT]):
         """
 
         return self._result
-    # end result
 
     def start(self) -> None:
         """Starts the process."""
@@ -158,24 +140,20 @@ class Caller(Generic[_RT]):
         self._thread = threading.Thread(target=self)
 
         self.thread.start()
-    # end start
 
     def reset(self) -> None:
         """Rests the values from the calls."""
 
         self.called = False
         self.complete = False
-    # end reset
 
     def clean(self) -> None:
         """Cleans the caller."""
 
         self._thread = None
         self._result = None
-    # end clean
-# end Caller
 
-def find_caller(callers: Iterable[Caller], identifier: Any) -> Caller:
+def find_caller(callers: Iterable[Caller], identifier: ...) -> Caller:
     """
     Finds the caller object by its identifier
 
@@ -188,17 +166,14 @@ def find_caller(callers: Iterable[Caller], identifier: Any) -> Caller:
     for caller in callers:
         if caller.identifier == identifier:
             return caller
-        # end if
-    # end for
 
     raise ValueError(
         f"Cannot find a caller object with the identifier: "
         f"{identifier}. valid identifiers are: "
         f"{', '.join(str(caller.identifier) for caller in callers)}"
     )
-# end find_caller
 
-def find_results(callers: Iterable[Caller], identifier: Any) -> Caller:
+def find_results(callers: Iterable[Caller], identifier: ...) -> Caller:
     """
     Finds the caller object by its identifier
 
@@ -211,17 +186,13 @@ def find_results(callers: Iterable[Caller], identifier: Any) -> Caller:
     for caller in callers:
         if caller.identifier == identifier:
             return caller
-        # end if
-    # end for
 
     raise ValueError(
         f"Cannot find a caller object with the identifier: "
         f"{identifier}. valid identifiers are: "
         f"{', '.join(str(caller.identifier) for caller in callers)}"
     )
-# end find_results
 
-@represent
 class CallDefinition:
     """A class to represent the call definition."""
 
@@ -241,13 +212,13 @@ class CallDefinition:
 
     def __init__(
             self,
-            wait: Optional[bool] = None,
-            reset_before: Optional[bool] = None,
-            reset_after: Optional[bool] = None,
-            clean_before: Optional[bool] = None,
-            clean_after: Optional[bool] = None,
-            dynamic: Optional[bool] = None,
-            sleep: Optional[Union[int, float, dt.timedelta]] = None
+            wait: bool = None,
+            reset_before: bool = None,
+            reset_after: bool = None,
+            clean_before: bool = None,
+            clean_after: bool = None,
+            dynamic: bool = None,
+            sleep: int | float | dt.timedelta = None
     ) -> None:
         """
         Defines the class attributes.
@@ -263,31 +234,24 @@ class CallDefinition:
 
         if wait is None:
             wait = self.WAIT
-        # end if
 
         if sleep is None:
             sleep = self.SLEEP
-        # end if
 
         if dynamic is None:
             dynamic = self.DYNAMIC
-        # end if
 
         if reset_before is None:
             reset_before = self.RESET_BEFORE
-        # end if
 
         if reset_after is None:
             reset_after = self.RESET_AFTER
-        # end if
 
         if clean_after is None:
             clean_after = self.CLEAN_AFTER
-        # end if
 
         if clean_before is None:
             clean_before = self.CLEAN_BEFORE
-        # end if
 
         self.wait = wait
         self.reset_before = reset_before
@@ -296,22 +260,17 @@ class CallDefinition:
         self.clean_before = clean_before
         self.dynamic = dynamic
         self.sleep = sleep
-    # end __init__
-# end CallDefinition
 
-@define(repr=False, frozen=True)
-@represent
+@dataclass(slots=True, frozen=True)
 class CallsResults:
     """A class to contain the info of a call to the results."""
 
-    results: Dict[Caller, CallResult]
+    results: dict[Caller, CallResult]
     time: ProcessTime
     waiting: ProcessTime
     definition: CallDefinition
 
-    __modifiers__ = Modifiers(excluded=['waiting'])
-
-    def caller(self, identifier: Any) -> Caller:
+    def caller(self, identifier: ...) -> Caller:
         """
         Finds the caller object by its identifier
 
@@ -323,17 +282,14 @@ class CallsResults:
         for caller in self.results:
             if caller.identifier == identifier:
                 return caller
-            # end if
-        # end for
 
         raise ValueError(
             f"Cannot find a caller object with the identifier: "
             f"{identifier}. valid identifiers are: "
             f"{', '.join(str(caller.identifier) for caller in self.results)}"
         )
-    # end caller
 
-    def result(self, identifier: Any) -> CallResult:
+    def result(self, identifier: ...) -> CallResult:
         """
         Finds the caller object by its identifier
 
@@ -353,10 +309,8 @@ class CallsResults:
             f"{identifier}. valid identifiers are: "
             f"{', '.join(str(caller.identifier) for caller in self.results)}"
         )
-    # end result
-# end CallsResults
 
-def validate_callers(data: Any) -> Iterable[Caller]:
+def validate_callers(data: ...) -> Iterable[Caller]:
     """
     Validates the data as results.
 
@@ -377,8 +331,6 @@ def validate_callers(data: Any) -> Iterable[Caller]:
             f"Callers must be an iterable of "
             f"{Caller} objects, not: {data}."
         ) from e
-    # end try
-# end validate_callers
 
 def await_completion(
         callers: Iterable[Caller], definition: CallDefinition
@@ -399,7 +351,6 @@ def await_completion(
 
     else:
         sleep = definition.sleep
-    # end if
 
     while True:
         current = time.time()
@@ -409,7 +360,6 @@ def await_completion(
             not all(caller.complete for caller in callers)
         ):
             break
-        # end if
 
         if definition.dynamic:
             if isinstance(definition.sleep, dt.timedelta):
@@ -417,20 +367,15 @@ def await_completion(
 
             else:
                 sleep = definition.sleep
-            # end if
-        # end if
 
         time.sleep(max((0, sleep - (time.time() - current))))
-    # end while
 
     end = dt.datetime.now()
 
     return ProcessTime(start=start, end=end)
-# end await_completion
 
 def multi_threaded_defined_call(
-        callers: Iterable[Caller],
-        definition: Optional[CallDefinition] = None
+        callers: Iterable[Caller], definition: CallDefinition = None
 ) -> CallsResults:
     """
     Calls the functions with the results.
@@ -447,15 +392,12 @@ def multi_threaded_defined_call(
 
     if definition is None:
         definition = CallDefinition()
-    # end if
 
     if definition.clean_before:
         [caller.clean() for caller in callers]
-    # end if
 
     if definition.reset_before:
         [caller.reset() for caller in callers]
-    # end if
 
     [caller.start() for caller in callers]
 
@@ -467,11 +409,9 @@ def multi_threaded_defined_call(
 
     if definition.reset_after:
         [caller.reset() for caller in callers]
-    # end if
 
     if definition.clean_after:
         [caller.clean() for caller in callers]
-    # end if
 
     end = dt.datetime.now()
 
@@ -481,17 +421,16 @@ def multi_threaded_defined_call(
         definition=definition,
         waiting=waiting
     )
-# end multi_threaded_defined_call
 
 def multi_threaded_call(
         callers: Iterable[Caller],
-        wait: Optional[bool] = None,
-        reset_before: Optional[bool] = None,
-        reset_after: Optional[bool] = None,
-        clean_before: Optional[bool] = None,
-        clean_after: Optional[bool] = None,
-        dynamic: Optional[bool] = None,
-        sleep: Optional[Union[int, float, dt.timedelta]] = None
+        wait: bool = None,
+        reset_before: bool = None,
+        reset_after: bool = None,
+        clean_before: bool = None,
+        clean_after: bool = None,
+        dynamic: bool = None,
+        sleep: int | float | dt.timedelta = None
 ) -> CallsResults:
     """
     Calls the functions with the results.
@@ -517,4 +456,3 @@ def multi_threaded_call(
             clean_after=clean_after
         )
     )
-# end multi_threaded_call
