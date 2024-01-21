@@ -2,6 +2,11 @@
 
 > A python module for creating multithreading processes easily, in a more Pythonic way.
 
+## Installation
+```
+pip install python-multithreading
+```
+
 ## example
 
 ```python
