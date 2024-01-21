@@ -7,3 +7,4 @@
 /docs/
 /pyproject.toml
 /MANIFEST.in
+/.pypirc
