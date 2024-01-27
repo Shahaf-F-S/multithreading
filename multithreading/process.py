@@ -3,9 +3,7 @@
 import datetime as dt
 import threading
 import time
-from typing import (
-    Callable, Iterable, TypeVar, Generic, ParamSpec
-)
+from typing import Callable, Iterable, ParamSpec
 from dataclasses import dataclass
 
 __all__ = [
@@ -37,19 +35,41 @@ class ProcessTime:
 
         return self.end - self.start
 
-_RT = TypeVar("_RT")
-
 _P = ParamSpec("_P")
 
-@dataclass(slots=True, frozen=True)
-class CallResult(Generic[_RT]):
+class CallResult[R]:
     """A class to represent a container for the call result."""
 
-    returns: _RT = None
-    thread: threading.Thread = None
-    time: ProcessTime = None
+    __slots__ = ('_returns', '_thread', '_time')
 
-class Caller(Generic[_RT]):
+    # noinspection PyShadowingNames
+    def __init__(
+            self,
+            returns: R = None,
+            thread: threading.Thread = None,
+            time: ProcessTime = None,
+    ) -> None:
+
+        self._returns = returns
+        self._thread = thread
+        self._time = time
+
+    @property
+    def returns(self) -> R:
+
+        return self._returns
+
+    @property
+    def thread(self) -> threading.Thread:
+
+        return self._thread
+
+    @property
+    def time(self) -> ProcessTime:
+
+        return self._time
+
+class Caller[R]:
     """A class to represent a function caller object."""
 
     __slots__ = (
@@ -59,7 +79,7 @@ class Caller(Generic[_RT]):
 
     def __init__(
             self,
-            target: Callable[_P, _RT],
+            target: Callable[_P, R],
             identifier: ... = None,
             args: _P.args = None,
             kwargs: _P.kwargs = None
@@ -82,9 +102,9 @@ class Caller(Generic[_RT]):
         self.called = False
 
         self._thread: threading.Thread | None = None
-        self._result: CallResult[_RT] | None = None
+        self._result: CallResult[R] | None = None
 
-    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> CallResult[_RT]:
+    def __call__(self, *args: _P.args, **kwargs: _P.kwargs) -> CallResult[R]:
         """
         Calls the function and saves the response.
 
@@ -101,13 +121,13 @@ class Caller(Generic[_RT]):
 
         self.called = True
 
-        returns: _RT = self.target(*self.args, **self.kwargs)
+        returns: R = self.target(*self.args, **self.kwargs)
 
         self.complete = True
 
         end = dt.datetime.now()
 
-        self._result = CallResult(
+        self._result = CallResult[R](
             time=ProcessTime(start=start, end=end),
             thread=self.thread, returns=returns
         )
@@ -125,7 +145,7 @@ class Caller(Generic[_RT]):
         return self._thread
 
     @property
-    def result(self) -> CallResult[_RT]:
+    def result(self) -> CallResult[R]:
         """
         Returns the result object.
 
@@ -261,16 +281,46 @@ class CallDefinition:
         self.dynamic = dynamic
         self.sleep = sleep
 
-@dataclass(slots=True, frozen=True)
-class CallsResults:
+class CallsResults[R]:
     """A class to contain the info of a call to the results."""
 
-    results: dict[Caller, CallResult]
-    time: ProcessTime
-    waiting: ProcessTime
-    definition: CallDefinition
+    __slots__ = ("_results", "_time", "_waiting", "_definition")
 
-    def caller(self, identifier: ...) -> Caller:
+    # noinspection PyShadowingNames
+    def __init__(
+            self,
+            results: dict[Caller[R], CallResult[R]],
+            time: ProcessTime,
+            waiting: ProcessTime,
+            definition: CallDefinition
+    ) -> None:
+
+        self._results = results
+        self._time = time
+        self._waiting = waiting
+        self._definition = definition
+
+    @property
+    def results(self) -> dict[Caller[R], CallResult[R]]:
+
+        return self._results
+
+    @property
+    def time(self) -> ProcessTime:
+
+        return self._time
+
+    @property
+    def waiting(self) -> ProcessTime:
+
+        return self._waiting
+
+    @property
+    def definition(self) -> CallDefinition:
+
+        return self._definition
+
+    def caller(self, identifier: ...) -> Caller[R]:
         """
         Finds the caller object by its identifier
 
@@ -289,7 +339,7 @@ class CallsResults:
             f"{', '.join(str(caller.identifier) for caller in self.results)}"
         )
 
-    def result(self, identifier: ...) -> CallResult:
+    def result(self, identifier: ...) -> CallResult[R]:
         """
         Finds the caller object by its identifier
 
@@ -309,28 +359,6 @@ class CallsResults:
             f"{identifier}. valid identifiers are: "
             f"{', '.join(str(caller.identifier) for caller in self.results)}"
         )
-
-def validate_callers(data: ...) -> Iterable[Caller]:
-    """
-    Validates the data as results.
-
-    :param data: The data to validate.
-
-    :return: The valid results data.
-    """
-
-    try:
-        if not all(isinstance(value, Caller) for value in data):
-            raise ValueError
-        # end if
-
-        return data
-
-    except (TypeError, ValueError) as e:
-        raise type(e)(
-            f"Callers must be an iterable of "
-            f"{Caller} objects, not: {data}."
-        ) from e
 
 def await_completion(
         callers: Iterable[Caller], definition: CallDefinition
@@ -374,9 +402,9 @@ def await_completion(
 
     return ProcessTime(start=start, end=end)
 
-def multi_threaded_defined_call(
-        callers: Iterable[Caller], definition: CallDefinition = None
-) -> CallsResults:
+def multi_threaded_defined_call[R](
+        callers: Iterable[Caller[R]], definition: CallDefinition = None
+) -> CallsResults[R]:
     """
     Calls the functions with the results.
 
@@ -387,8 +415,6 @@ def multi_threaded_defined_call(
     """
 
     start = dt.datetime.now()
-
-    callers = validate_callers(data=callers)
 
     if definition is None:
         definition = CallDefinition()
@@ -415,15 +441,15 @@ def multi_threaded_defined_call(
 
     end = dt.datetime.now()
 
-    return CallsResults(
+    return CallsResults[R](
         results=results,
         time=ProcessTime(start=start, end=end),
         definition=definition,
         waiting=waiting
     )
 
-def multi_threaded_call(
-        callers: Iterable[Caller],
+def multi_threaded_call[R](
+        callers: Iterable[Caller[R]],
         wait: bool = None,
         reset_before: bool = None,
         reset_after: bool = None,
@@ -431,7 +457,7 @@ def multi_threaded_call(
         clean_after: bool = None,
         dynamic: bool = None,
         sleep: int | float | dt.timedelta = None
-) -> CallsResults:
+) -> CallsResults[R]:
     """
     Calls the functions with the results.
 

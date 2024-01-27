@@ -18,7 +18,7 @@ NUMBER = 100
 def main() -> None:
 
     callers = [
-        Caller(
+        Caller[dict[str, int | float]](
             target=slow_function,
             kwargs=dict(delay=DELAY, number=NUMBER)
         ) for _ in range(CALLS)
